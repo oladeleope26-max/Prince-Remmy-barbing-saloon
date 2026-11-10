@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Barber - Share Live Location | Prince Remmy</title>
+<style>body{font-family:Arial;padding:20px;text-align:center}input,button{padding:14px;width:90%;margin:8px;font-size:16px;border-radius:10px}button{background:#000;color:#fff;border:none} #status{background:#e8ffe8;padding:15px;border-radius:10px;margin-top:10px}</style>
+</head>
+<body>
+<h2>✂️ Prince Remmy - Barber Live</h2>
+<p>Open this when you don comot for house</p>
+<input id="bookingId" placeholder="Booking ID e.g. OPE123" value="">
+<input id="barberName" placeholder="Your Name" value="Ope">
+<button onclick="startSharing()">▶️ START SHARING - I Don Comot</button>
+<button onclick="arrived()" style="background:green">✅ I DON ARRIVE</button>
+<button onclick="stopSharing()" style="background:red">⏹ STOP</button>
+<div id="status">Not sharing yet...</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA-nbhDPVdACsqWOFSrnLNbNc394sQ1GPY",
+  authDomain: "prince-remmy-tracking.firebaseapp.com",
+  databaseURL: "https://prince-remmy-tracking-default-rtdb.firebaseio.com",
+  projectId: "prince-remmy-tracking",
+  storageBucket: "prince-remmy-tracking.firebasestorage.app",
+  messagingSenderId: "1002033763854",
+  appId: "1:1002033763854:web:5788954464ce3c0c340e5f",
+  measurementId: "G-SJTEFRJ60H"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+let watchId = null;
+
+function startSharing(){
+  const id = document.getElementById('bookingId').value.trim();
+  const name = document.getElementById('barberName').value.trim() || "Ope";
+  if(!id){ alert("Put Booking ID first!"); return; }
+  if(!navigator.geolocation){ alert("Your phone no support location"); return; }
+  document.getElementById('status').innerHTML = "Sharing live... Customer can see you now. <br>Keep this page open, no lock phone.";
+  db.ref('bookings/'+id).update({ barberName: name, status: "on_the_way", updatedAt: Date.now() });
+  watchId = navigator.geolocation.watchPosition((pos)=>{
+    db.ref('bookings/'+id).update({
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+      status: "on_the_way",
+      updatedAt: Date.now(),
+      speed: pos.coords.speed || 0
+    });
+    document.getElementById('status').innerHTML = "📍 Sharing... Lat: "+pos.coords.latitude.toFixed(5)+" Lng: "+pos.coords.longitude.toFixed(5);
+  }, (err)=>{ alert(err.message); }, { enableHighAccuracy:true, maximumAge:5000 });
+}
+function arrived(){
+  const id = document.getElementById('bookingId').value.trim();
+  db.ref('bookings/'+id).update({ status: "arrived" });
+  document.getElementById('status').innerHTML = "✅ You don arrive! Customer don see am.";
+}
+function stopSharing(){
+  if(watchId) navigator.geolocation.clearWatch(watchId);
+  const id = document.getElementById('bookingId').value.trim();
+  if(id) db.ref('bookings/'+id).update({ status: "completed" });
+  document.getElementById('status').innerHTML = "Stopped.";
+}
+</script>
+</body>
+</html>

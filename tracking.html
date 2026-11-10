@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Track Your Barber | Prince Remmy</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>body{margin:0;font-family:Arial}#top{background:#000;color:#fff;padding:15px;text-align:center}#map{height:70vh;width:100%}#info{padding:15px;text-align:center;font-size:18px}</style>
+</head>
+<body>
+<div id="top">✂️ PRINCE REMMY - TRACK YOUR BARBER LIVE</div>
+<div id="info">Loading location...</div>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA-nbhDPVdACsqWOFSrnLNbNc394sQ1GPY",
+  authDomain: "prince-remmy-tracking.firebaseapp.com",
+  databaseURL: "https://prince-remmy-tracking-default-rtdb.firebaseio.com",
+  projectId: "prince-remmy-tracking",
+  storageBucket: "prince-remmy-tracking.firebasestorage.app",
+  messagingSenderId: "1002033763854",
+  appId: "1:1002033763854:web:5788954464ce3c0c340e5f",
+  measurementId: "G-SJTEFRJ60H"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const params = new URLSearchParams(location.search);
+const bookingId = params.get('id') || "OPE123";
+let map = L.map('map').setView([7.25, 5.21], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+let barberMarker = null;
+let customerMarker = null;
+
+// Customer location
+if(navigator.geolocation){
+  navigator.geolocation.getCurrentPosition((pos)=>{
+    customerMarker = L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(map).bindPopup("You - Customer").openPopup();
+    map.setView([pos.coords.latitude, pos.coords.longitude], 14);
+  });
+}
+
+function getDistance(lat1,lon1,lat2,lon2){
+  const R=6371; const dLat=(lat2-lat1)*Math.PI/180; const dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+db.ref('bookings/'+bookingId).on('value', (snap)=>{
+  const data = snap.val();
+  if(!data){ document.getElementById('info').innerHTML = "Waiting for barber to start trip... Booking: "+bookingId; return; }
+  if(data.status==="arrived"){ document.getElementById('info').innerHTML = "✅ Your barber don arrive! Open door."; }
+  else if(data.status==="on_the_way"){
+    if(data.lat && data.lng){
+      if(!barberMarker){ barberMarker = L.marker([data.lat, data.lng]).addTo(map).bindPopup("✂️ Ope - Your Barber"); }
+      else { barberMarker.setLatLng([data.lat, data.lng]); }
+      let msg = "✂️ "+(data.barberName||"Ope")+" dey come... ";
+      if(customerMarker){
+        let cPos = customerMarker.getLatLng();
+        let dist = getDistance(data.lat, data.lng, cPos.lat, cPos.lng);
+        let eta = Math.round(dist / 0.5); // ~30km/h average
+        if(eta<1) eta=1;
+        msg += "<br><b>"+dist.toFixed(1)+"km away - Arriving in ~"+eta+" mins</b>";
+      } else {
+        msg += "<br>Live location dey update...";
+      }
+      document.getElementById('info').innerHTML = msg;
+    }
+  }
+});
+</script>
+</body>
+</html>
